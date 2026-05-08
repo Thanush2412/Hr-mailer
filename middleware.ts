@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
 
-const PUBLIC = ["/login", "/api/auth/google-signin", "/api/auth/logout", "/api/auth/me"];
+const PUBLIC = ["/login", "/api/auth/google-signin", "/api/auth/logout", "/api/auth/me", "/api/auth/admins"];
 
+// Middleware only checks cookie PRESENCE.
+// Full JWT verification (with DB-sourced secret) happens in each API route and page.
+// This is intentional — middleware runs on Edge and cannot call the DB.
 export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   if (PUBLIC.some((p) => pathname.startsWith(p))) return NextResponse.next();
   if (pathname.startsWith("/_next") || pathname.startsWith("/favicon")) return NextResponse.next();
 
-  // Just check cookie presence — full JWT verification happens in API routes
   const token = req.cookies.get("hr_session")?.value;
   if (!token) return NextResponse.redirect(new URL("/login", req.url));
 
+  // Cookie exists — let the page/API verify the JWT with the correct secret
   return NextResponse.next();
 }
 
