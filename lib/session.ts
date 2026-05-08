@@ -5,7 +5,8 @@ const COOKIE = "hr_session";
 const TTL    = 60 * 60 * 8; // 8 hours
 
 function getSecret(): Uint8Array {
-  const s = process.env.SESSION_SECRET || "faceprep-hr-dashboard-secret-fallback-2025";
+  const s = process.env.SESSION_SECRET;
+  if (!s) throw new Error("SESSION_SECRET environment variable is not set");
   return new TextEncoder().encode(s);
 }
 
