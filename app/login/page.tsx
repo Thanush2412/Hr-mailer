@@ -34,7 +34,7 @@ function LoginContent() {
         });
         const data = await res.json();
         if (data.status === "ok") {
-          window.location.href = "/";
+          setTimeout(() => { window.location.replace("/"); }, 100);
         } else if (data.status === "unauthorized") {
           setError(`${data.email || "Your account"} is not authorised.`);
         } else {
