@@ -1,33 +1,30 @@
 import { SignJWT, jwtVerify } from "jose";
 import { cookies } from "next/headers";
-import { resolveConfig } from "./db";
 
 const COOKIE = "hr_session";
 const TTL    = 60 * 60 * 8; // 8 hours
 
-export interface SessionUser { email: string; name: string; }
-
-async function getSecret(): Promise<Uint8Array> {
-  const { sessionSecret } = await resolveConfig("hr-dashboard");
-  return new TextEncoder().encode(sessionSecret);
+function getSecret(): Uint8Array {
+  const s = process.env.SESSION_SECRET || "faceprep-hr-dashboard-secret-fallback-2025";
+  return new TextEncoder().encode(s);
 }
 
+export interface SessionUser { email: string; name: string; }
+
 export async function createSession(user: SessionUser): Promise<string> {
-  const secret = await getSecret();
   return new SignJWT({ email: user.email, name: user.name })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${TTL}s`)
-    .sign(secret);
+    .sign(getSecret());
 }
 
 export async function getSession(): Promise<SessionUser | null> {
   try {
-    const store  = await cookies();
-    const token  = store.get(COOKIE)?.value;
+    const store = await cookies();
+    const token = store.get(COOKIE)?.value;
     if (!token) return null;
-    const secret = await getSecret();
-    const { payload } = await jwtVerify(token, secret);
+    const { payload } = await jwtVerify(token, getSecret());
     return { email: payload.email as string, name: payload.name as string };
   } catch { return null; }
 }
