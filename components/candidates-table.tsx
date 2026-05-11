@@ -180,7 +180,7 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
       const json: SheetResponse = await res.json();
       if (json.status === "success") {
         setHeaders(json.headers);
-        setAllRows(json.data);
+        setAllRows([...json.data].reverse());
         setPage(1);
         setSelected(new Set());
         if (!colsInitialized) {
