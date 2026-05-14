@@ -153,13 +153,14 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
   const [search, setSearch]                 = useState("");
   const [resultFilter, setResultFilter]     = useState<string>("all");
   const [page, setPage]                     = useState(1);
-  const [pageSize, setPageSize]             = useState(20);
-  const [visibleCols, setVisibleCols]       = useState<Set<string>>(new Set());
-  const [colsInitialized, setColsInitialized] = useState(false);
-  const [selected, setSelected]             = useState<Set<number>>(new Set());
-  const [bulkDialogOpen, setBulkDialogOpen] = useState(false);
-  const [bulkSending, setBulkSending]       = useState(false);
-  const [bulkProgress, setBulkProgress]     = useState({ current: 0, total: 0 });
+  const [pageSize, setPageSize]                 = useState(50);
+  const [totalRows, setTotalRows]               = useState(0);
+  const [visibleCols, setVisibleCols]           = useState<Set<string>>(new Set());
+  const [colsInitialized, setColsInitialized]   = useState(false);
+  const [selected, setSelected]                 = useState<Set<number>>(new Set());
+  const [bulkDialogOpen, setBulkDialogOpen]     = useState(false);
+  const [bulkSending, setBulkSending]           = useState(false);
+  const [bulkProgress, setBulkProgress]         = useState({ current: 0, total: 0 });
 
   // Reset all state when sheet URL changes
   useEffect(() => {
@@ -176,12 +177,13 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
     if (!sheetUrl) return;
     setLoading(true);
     try {
+      // Fetch all data (no limit) to allow client-side searching and sorting
       const res  = await fetch(`/api/sheet?url=${encodeURIComponent(sheetUrl)}`);
       const json: SheetResponse = await res.json();
       if (json.status === "success") {
         setHeaders(json.headers);
-        setAllRows([...json.data].reverse());
-        setPage(1);
+        setAllRows(json.data); // Backend now returns all rows, reversed (newest first)
+        setTotalRows(json.data.length);
         setSelected(new Set());
         if (!colsInitialized) {
           const selectable = json.headers.filter((h) => !HIDDEN_SYSTEM.has(h.toLowerCase()) && h.trim() !== "");
@@ -226,8 +228,12 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
     return rows;
   }, [allRows, search, resultFilter, selectableHeaders, headers]);
 
-  const totalPages = Math.ceil(filtered.length / pageSize);
-  const pageRows   = filtered.slice((page - 1) * pageSize, page * pageSize);
+  // Client-side pagination: slice the filtered results
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const pageRows   = useMemo(() => {
+    const start = (page - 1) * pageSize;
+    return filtered.slice(start, start + pageSize);
+  }, [filtered, page, pageSize]);
 
   // ── stats ────────────────────────────────────────────────────────────────────
   const stats = useMemo(() => {
@@ -463,7 +469,7 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
         )}
 
         <span className="text-sm text-muted-foreground">
-          {loading ? "Loading…" : `${filtered.length} candidates`}
+          {loading ? "Loading…" : `${totalRows} total candidates`}
         </span>
       </div>
 
@@ -471,10 +477,10 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
       {allRows.length > 0 && (
         <div className="grid grid-cols-4 gap-3">
           {[
-            { label: "Total", value: stats.total, color: "text-slate-700", bg: "bg-slate-50 border-slate-200" },
-            { label: "Pending", value: stats.pending, color: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
-            { label: "Sent", value: stats.sent, color: "text-green-700", bg: "bg-green-50 border-green-200" },
-            { label: "Failed", value: stats.failed, color: "text-red-700", bg: "bg-red-50 border-red-200" },
+            { label: "Sheet Total", value: totalRows, color: "text-slate-700", bg: "bg-slate-50 border-slate-200" },
+            { label: "Pending (Page)", value: stats.pending, color: "text-orange-700", bg: "bg-orange-50 border-orange-200" },
+            { label: "Sent (Page)", value: stats.sent, color: "text-green-700", bg: "bg-green-50 border-green-200" },
+            { label: "Failed (Page)", value: stats.failed, color: "text-red-700", bg: "bg-red-50 border-red-200" },
           ].map(({ label, value, color, bg }) => (
             <div key={label} className={`rounded-lg border p-3 ${bg}`}>
               <p className="text-xs text-muted-foreground">{label}</p>
@@ -597,7 +603,7 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
       {totalPages > 1 && (
         <div className="flex items-center justify-between text-sm bg-card border rounded-lg p-3">
           <span className="text-muted-foreground">
-            Page {page} of {totalPages} · {filtered.length} rows
+            Page {page} of {totalPages} · {totalRows} total rows
           </span>
           <div className="flex gap-1">
             <Button variant="outline" size="sm" className="h-8 w-8 p-0"

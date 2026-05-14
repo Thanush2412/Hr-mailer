@@ -10,7 +10,7 @@ const nextConfig: NextConfig = {
           // Allow GSI popup to communicate back — "unsafe-none" disables COOP restriction
           {
             key: "Cross-Origin-Opener-Policy",
-            value: "same-origin-allow-popups",
+            value: "unsafe-none",
           },
         ],
       },
