@@ -33,7 +33,7 @@ interface SheetResponse {
 // ── field helpers ──────────────────────────────────────────────────────────────
 function findHeader(headers: string[], keys: string[]): string | undefined {
   for (const key of keys) {
-    const match = headers.find((h) => h.toLowerCase() === key);
+    const match = headers.find((h) => h.toLowerCase().trim() === key.toLowerCase().trim());
     if (match) return match;
   }
 }
@@ -45,16 +45,16 @@ function getMapped(row: Candidate, mappedCol: string | undefined, fallbackKeys: 
 }
 
 function getEmailField(row: Candidate, headers: string[], m: ColumnMapping) {
-  return getMapped(row, m.email, ["to", "email", "recipient", "email address", "to email"], headers);
+  return getMapped(row, m.email, ["to", "email", "recipient", "email id", "email address", "to email", "candidate email"], headers);
 }
 function getResultField(row: Candidate, headers: string[], m: ColumnMapping) {
-  return getMapped(row, m.result, ["result", "status", "outcome", "decision"], headers);
+  return getMapped(row, m.result, ["result", "status", "outcome", "decision", "interview result", "final result", "hiring status"], headers);
 }
 function getNameField(row: Candidate, headers: string[], m: ColumnMapping) {
-  return getMapped(row, m.name, ["candidate name", "name", "full name", "candidate"], headers);
+  return getMapped(row, m.name, ["candidate name", "name", "full name", "candidate", "candidate_name"], headers);
 }
 function getCandidateIdField(row: Candidate, headers: string[], m: ColumnMapping): string {
-  return getMapped(row, m.candidateId, ["candidate id", "candidateid", "id", "candidate_id"], headers);
+  return getMapped(row, m.candidateId, ["candidate id", "candidateid", "id", "candidate_id", "roll no", "roll number"], headers);
 }
 
 function buildEmailTemplate(result: string, name: string, candidateId: string): { subject: string; body: string; candidateId: string } | null {
@@ -141,8 +141,8 @@ function EmailStatusBadge({ value }: { value: string }) {
   return <span className="text-xs">{value}</span>;
 }
 
-const RESULT_COLS  = new Set(["result", "status", "outcome", "decision"]);
-const HIDDEN_SYSTEM = new Set(["email status", "_rowindex"]);
+const RESULT_COLS  = new Set(["result", "status", "outcome", "decision", "interview result", "final result", "hiring status"]);
+const HIDDEN_SYSTEM = new Set(["email status", "mail sent status", "_rowindex"]);
 
 // ── main component ─────────────────────────────────────────────────────────────
 export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { sheetUrl: string; columnMapping?: ColumnMapping }) {
@@ -203,8 +203,11 @@ export default function CandidatesTable({ sheetUrl, columnMapping = {} }: { shee
   useEffect(() => { fetchData(); }, [fetchData]);
 
   const selectableHeaders = useMemo(
-    () => headers.filter((h) => !HIDDEN_SYSTEM.has(h.toLowerCase()) && h.trim() !== ""),
-    [headers]
+    () => headers.filter((h) => {
+      const lower = h.toLowerCase().trim();
+      return !HIDDEN_SYSTEM.has(lower) && h !== emailStatusHeader && h.trim() !== "";
+    }),
+    [headers, emailStatusHeader]
   );
   const emailStatusHeader = useMemo(() => {
     if (columnMapping.emailStatus) return columnMapping.emailStatus;
